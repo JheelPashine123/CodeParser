@@ -1,0 +1,314 @@
+Metadata-Version: 2.4
+Name: graphagent
+Version: 0.1.0
+Summary: Multi-language Code Graph Parser for GraphAgent
+Author: GraphAgent Team
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Software Development :: Code Generators
+Classifier: Topic :: Software Development :: Libraries
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: tree-sitter<0.26.0,>=0.24.0
+Requires-Dist: tree-sitter-python>=0.21.0
+Requires-Dist: tree-sitter-javascript>=0.21.0
+Requires-Dist: tree-sitter-typescript>=0.21.0
+Requires-Dist: tree-sitter-java>=0.21.0
+Requires-Dist: tree-sitter-go>=0.21.0
+Requires-Dist: tree-sitter-c>=0.21.0
+Requires-Dist: tree-sitter-cpp>=0.21.0
+Requires-Dist: tree-sitter-rust>=0.21.0
+Requires-Dist: tree-sitter-php>=0.21.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+
+# GraphAgent Code Parser (`graphagent`)
+
+A standalone, reusable multi-language code parser and relationship graph generator CLI for graph-based AI agents.
+
+`graphagent` can be run against **any code repository** to parse its source code using [Tree-sitter](https://tree-sitter.github.io/tree-sitter/) ASTs and generate a structured, deterministic JSON knowledge graph representation (`.graphagent/graph_data.json`) suitable for ingestion into FalkorDB or other graph databases.
+
+---
+
+## Key Features
+
+- **Multi-Language AST Extraction**: Built on native Tree-sitter grammars (no regex hacks or language-specific AST limits).
+- **Supported Languages**:
+  - **Python** (`.py`, `.pyi`)
+  - **JavaScript** (`.js`, `.jsx`, `.mjs`, `.cjs`)
+  - **TypeScript & TSX** (`.ts`, `.tsx`, `.mts`, `.cts`)
+  - **Java** (`.java`)
+  - **Go** (`.go`)
+  - **C & C++** (`.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx`, `.hh`)
+  - **Rust** (`.rs`)
+  - **PHP** (`.php`, `.phtml`, `.php4`, `.php5`)
+- **Rich Entity Extraction**: Files, classes, interfaces, structs, enums, traits, functions, methods, parameters, return types, docstrings, imports, and function calls.
+- **Cross-File Relationship Resolution**:
+  - `CONTAINS`: Module/File -> Class -> Method / Function.
+  - `IMPORTS`: File -> Module / Symbol.
+  - `CALLS`: Function/Method -> Called function (`resolved`, `unresolved`, or `inferred`).
+  - `INHERITS`: Class -> Base Class.
+  - `IMPLEMENTS`: Class / Struct -> Interface / Trait.
+- **Repository Safety & Performance**:
+  - Respects `.gitignore` and ignores `.git`, `node_modules`, `venv`, build caches, lock files, and secret `.env` files.
+  - Rejects binary files and files larger than 2 MB.
+  - Isolated per-file error handling: a syntax error in one file will never crash the scan of other files.
+  - Never executes code or sends data to external services.
+- **Deterministic & Idempotent**: Predictable symbol IDs, sorted entities, and stable JSON output across repeated runs.
+
+---
+
+## Installation
+
+Install `graphagent` once into your Python environment:
+
+```bash
+# From within the codeparser directory:
+pip install -e .
+
+# Or from any other location / target project:
+pip install -e /Users/apple/FalcorTest/codeparser
+```
+
+Verify installation:
+
+```bash
+graphagent --help
+```
+
+---
+
+## CLI Usage
+
+### 1. Parse Current Repository (Default)
+
+```bash
+graphagent parse .
+```
+This scans the current directory and creates:
+```text
+.graphagent/graph_data.json
+```
+
+### 2. Parse Any Arbitrary Repository
+
+You can run `graphagent` against any project without copying code into it:
+
+```bash
+graphagent parse /path/to/any/project
+```
+
+### 3. Custom Output File
+
+```bash
+graphagent parse . --output custom_graph.json
+```
+
+### 4. Verbose Logging & Custom Excludes
+
+```bash
+graphagent parse . --verbose --exclude "legacy/*" "third_party/*"
+```
+
+---
+
+## Terminal Output Example
+
+```text
+  ██████╗ ██████╗  █████╗ ██████╗ ██╗  ██╗ █████╗  ██████╗ ███████╗███╗   ██╗████████╗
+ ██╔════╝ ██╔══██╗██╔══██╗██╔══██╗██║  ██║██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
+ ██║  ███╗██████╔╝███████║██████╔╝███████║███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   
+ ██║   ██║██╔══██╗██╔══██║██╔═══╝ ██╔══██║██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   
+ ╚██████╔╝██║  ██║██║  ██║██║     ██║  ██║██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   
+  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   
+                        Multi-Language Code Graph Parser v0.1.0
+
+🔍 Scanning repository: /path/to/project
+📁 Found 8 source files across 8 languages: cpp, go, java, javascript, php, python, rust, typescript
+
+⚙️ Parsing source ASTs...
+🔗 Resolving cross-file relationships (CALLS, IMPORTS, INHERITS)...
+
+=================================================================
+                    PARSER EXECUTION SUMMARY
+=================================================================
+  • Repository:           project (/path/to/project)
+  • Execution Time:       0.05 seconds
+  • Files Discovered:     8
+  • Files Parsed:         8 (errors: 0)
+  • Languages Detected:   cpp, go, java, javascript, php, python, rust, typescript
+
+  📦 Extracted Entities (Nodes):
+     - Class           6
+     - File            8
+     - Function        4
+     - Interface       3
+     - Method          12
+     - Struct          2
+     - Trait           1
+     Total Nodes:        36
+
+  🔗 Resolved Relationships (Edges):
+     - CALLS           8
+     - CONTAINS        28
+     - IMPLEMENTS      4
+     - IMPORTS         3
+     - INHERITS        1
+     Total Edges:        44
+
+  🎯 Relationship Resolutions:
+     - inferred        1
+     - resolved        35
+     - unresolved      8
+
+-----------------------------------------------------------------
+  ✅ Output Graph JSON:   /path/to/project/.graphagent/graph_data.json (25.2 KB)
+=================================================================
+```
+
+---
+
+## JSON Output Schema (`schema_version: "1.0"`)
+
+```json
+{
+  "schema_version": "1.0",
+  "repository": {
+    "root": "/path/to/project",
+    "name": "project"
+  },
+  "metadata": {
+    "parser_version": "0.1.0",
+    "generated_at": "2026-10-17T00:32:55.533000Z",
+    "languages": ["python", "typescript", "go", "rust"]
+  },
+  "nodes": [
+    {
+      "id": "file:src/app.py",
+      "type": "file",
+      "name": "app.py",
+      "file_path": "src/app.py",
+      "start_line": 1,
+      "end_line": 45,
+      "language": "python",
+      "properties": {
+        "extension": ".py"
+      }
+    },
+    {
+      "id": "symbol:src/app.py:process_payment",
+      "type": "function",
+      "name": "process_payment",
+      "file_path": "src/app.py",
+      "start_line": 10,
+      "end_line": 25,
+      "language": "python",
+      "parameters": ["amount", "currency"],
+      "return_type": "bool",
+      "parent_id": "file:src/app.py",
+      "docstring": "Charge customer account and log status."
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge:file:src/app.py->CONTAINS->symbol:src/app.py:process_payment",
+      "source": "file:src/app.py",
+      "target": "symbol:src/app.py:process_payment",
+      "type": "CONTAINS",
+      "resolution": "resolved",
+      "line": 10,
+      "confidence": 1.0
+    },
+    {
+      "id": "edge:symbol:src/app.py:process_payment->CALLS->symbol:src/gateway.py:charge:18:4",
+      "source": "symbol:src/app.py:process_payment",
+      "target": "symbol:src/gateway.py:charge",
+      "type": "CALLS",
+      "resolution": "resolved",
+      "line": 18,
+      "confidence": 1.0,
+      "metadata": {
+        "called_name": "charge",
+        "receiver_name": "gateway"
+      }
+    }
+  ],
+  "summary": {
+    "files_scanned": 12,
+    "files_parsed": 12,
+    "nodes_count": 48,
+    "edges_count": 62,
+    "errors_count": 0
+  },
+  "warnings": []
+}
+```
+
+### Deterministic IDs
+- **File Nodes**: `file:<repo_relative_path>` (e.g. `file:backend/graph/client.py`)
+- **Symbol Nodes**: `symbol:<repo_relative_path>:<qualified_name>` (e.g. `symbol:backend/graph/client.py:FalkorDBSettings.__init__`)
+- **Edges**: `edge:<source_id>-><TYPE>-><target_id>` (with line/column discriminator for duplicate calls)
+
+---
+
+## Project Structure
+
+```text
+codeparser/
+├── pyproject.toml              # Packaging & dependencies (Tree-sitter pinned <0.26.0)
+├── README.md                   # Full documentation & usage guide
+├── src/
+│   └── graphagent/
+│       ├── __init__.py         # Package exports
+│       ├── cli.py              # CLI entrypoint with argparse & formatting
+│       ├── scanner.py          # Fast recursive file scanner & .gitignore engine
+│       ├── language_registry.py# Modular language registry (8 languages + TSX)
+│       ├── models.py           # Dataclass schemas (Node, Edge, GraphData, etc.)
+│       ├── symbol_extractor.py # Per-file error containment & extraction manager
+│       ├── relationship_resolver.py # CONTAINS, IMPORTS, CALLS, INHERITS resolver
+│       ├── exporter.py         # JSON serialization & schema compliance
+│       └── parsers/
+│           ├── __init__.py
+│           ├── base.py         # Abstract BaseParser with common helpers
+│           ├── python_parser.py
+│           ├── javascript_parser.py
+│           ├── typescript_parser.py
+│           ├── java_parser.py
+│           ├── go_parser.py
+│           ├── c_cpp_parser.py
+│           ├── rust_parser.py
+│           └── php_parser.py
+└── tests/
+    ├── sample_repo/            # Multi-language sample repository
+    │   ├── main.py
+    │   ├── service.ts
+    │   ├── app.js
+    │   ├── Greeter.java
+    │   ├── server.go
+    │   ├── engine.cpp
+    │   ├── lib.rs
+    │   └── router.php
+    ├── test_cli.py             # CLI end-to-end and determinism tests
+    ├── test_parsers.py         # All language parsers + nested funcs + syntax errors
+    ├── test_resolver.py        # Containment, call, import, and inheritance tests
+    └── test_scanner.py         # Scanner exclusion and gitignore tests
+```
+
+---
+
+## Running Automated Tests
+
+Run the test suite using `pytest`:
+
+```bash
+pytest -v
+```
+
+All 19 tests validate:
+- Multi-language parser accuracy (Python, JS, TS, Java, Go, C/C++, Rust, PHP)
+- Nested functions and symbol scope hierarchies
+- Deterministic IDs and duplicate symbol name resolution
+- Cross-file call resolution (`resolved`, `unresolved`, `inferred`)
+- Inheritance and interface implementation links
+- Error resilience on broken/malformed syntax
+- Scanner `.gitignore` and default ignore rules
+- CLI output format and referential integrity of resolved edges
